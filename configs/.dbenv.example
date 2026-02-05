@@ -1,0 +1,7 @@
+DB_HOSTNAME=mariadb
+MYSQL_DATABASE=supernotedb
+MYSQL_USER=supernote
+MYSQL_PASSWORD=CHANGE_ME_db_password
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=CHANGE_ME_redis_password

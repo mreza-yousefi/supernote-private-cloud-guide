@@ -1,0 +1,5 @@
+.env
+.dbenv
+*.pem
+*.key
+.htpasswd
