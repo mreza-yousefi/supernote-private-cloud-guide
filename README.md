@@ -120,35 +120,64 @@ Email is required for account registration and password recovery. Configure it t
 
 Private Cloud sync provides redundancy between devices, but it is **not** a backup. Deleted files are gone. Back up regularly.
 
-**Quick backup:**
+The recommended approach uses **restic** (encrypted, incremental, versioned local backups) + **rclone** (offsite sync to Google Drive or any cloud provider).
+
+### What to back up
+
+| Path | Contents |
+|------|----------|
+| `supernote_data/` | Your notes and books (critical) |
+| MariaDB dump | User accounts and metadata |
+| `sndata/recycle/` | Recycle bin (deleted files) |
+| `.env`, `.dbenv`, `docker-compose.yml`, `nginx-supernote.conf` | Config files |
+
+### Setup
 
 ```bash
-# User files
-tar -czf supernote-files-backup.tar.gz supernote_data/
+# Install
+sudo apt install restic rclone
 
-# Database
-docker exec mariadb mysqldump -u root -p"YOUR_ROOT_PASSWORD" supernotedb > supernotedb-backup.sql
+# Initialize an encrypted restic repo (remember this password!)
+mkdir -p ~/backups
+restic init --repo ~/backups/supernote-restic
+
+# Store the password for unattended backups
+echo 'YOUR_RESTIC_PASSWORD' > ~/backups/.restic-password
+chmod 600 ~/backups/.restic-password
+
+# Configure rclone for Google Drive (interactive)
+rclone config
 ```
 
-**Automated backup to NAS/external storage** (via cron):
+> **rclone + Google Drive:** The built-in rclone OAuth client ID may be rejected by Google. If so, create your own OAuth credentials in [Google Cloud Console](https://console.cloud.google.com/) (APIs & Services > Credentials > OAuth client ID > Desktop app) and provide them during `rclone config`.
+
+### Schedule
+
+Copy [configs/cloud-backup.sh](configs/cloud-backup.sh) to your install directory, edit the variables at the top, then add to cron:
 
 ```bash
-#!/bin/bash
-# cloud-backup.sh — run via cron, e.g.: 0 3 * * * /path/to/cloud-backup.sh
-
-BACKUP_DIR="/mnt/your-nas/supernote-backup"
-INSTALL_DIR="/path/to/supernote"
-
-# Database dump with timestamp
-docker exec mariadb mysqldump -u root -p"YOUR_ROOT_PASSWORD" supernotedb \
-  > "$INSTALL_DIR/db_backup/supernotedb-$(date +%Y%m%d).sql"
-
-# Sync files (preserves deletions on source)
-rsync -a "$INSTALL_DIR/supernote_data/" "$BACKUP_DIR/files/"
-rsync -a "$INSTALL_DIR/db_backup/" "$BACKUP_DIR/db_backup/"
+crontab -e
 ```
 
-A sample backup script is also available at [configs/cloud-backup.sh](configs/cloud-backup.sh).
+```cron
+# Daily local backup at 3am
+0 3 * * * ~/supernote/cloud-backup.sh >> ~/backups/backup.log 2>&1
+
+# Weekly offsite sync to Google Drive (Saturdays 3am)
+0 3 * * 6 ~/supernote/cloud-backup.sh --offsite >> ~/backups/backup.log 2>&1
+```
+
+### Quick manual backup
+
+```bash
+# Local backup
+./cloud-backup.sh
+
+# Local backup + offsite sync
+./cloud-backup.sh --offsite
+```
+
+All data is encrypted with AES-256 by restic before leaving your machine. Cloud providers see only opaque encrypted blobs.
 
 ## Upgrading
 
