@@ -25,7 +25,6 @@ DB_DUMP_DIR="$INSTALL_DIR/db_backup"
 GDRIVE_REMOTE="gdrive:supernote-backup"
 LOG_FILE="$HOME/backups/backup.log"
 MYSQL_ROOT_PASSWORD="CHANGE_ME"
-UPLOAD_LIMIT="125k"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
@@ -71,9 +70,9 @@ if [[ "${1:-}" == "--offsite" ]]; then
     log "Starting offsite sync to Google Drive..."
     rclone sync "$RESTIC_REPO" "$GDRIVE_REMOTE" \
         --transfers 4 \
-        --bwlimit "$UPLOAD_LIMIT" \
         --log-file "$LOG_FILE" \
         --log-level INFO
+    # Optional: add --bwlimit 125k to limit upload speed
     log "Offsite sync complete"
 fi
 
